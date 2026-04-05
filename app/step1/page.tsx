@@ -105,7 +105,7 @@ export default function Step1Page() {
       <TopNav />
 
       <div className="container">
-        <h1>Step 1 — Hackathon Kickoff Profile</h1>
+        <h1>Hackathon Kickoff Profile</h1>
 
         <div className="card">
           <label className="small">GitHub Username</label>
@@ -162,7 +162,7 @@ export default function Step1Page() {
                 Add Availability Slot
               </button>
               <button type="button" onClick={goNext}>
-                Next → Step 2
+                Next → Build Track
               </button>
             </div>
           </div>

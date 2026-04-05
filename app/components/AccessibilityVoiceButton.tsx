@@ -4,17 +4,34 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
 function collectReadableText() {
-  const heading = document.querySelector("h1")?.textContent?.trim() || "";
-  const paragraphs = Array.from(document.querySelectorAll("p, li"))
-    .map((node) => node.textContent?.trim() || "")
-    .filter(Boolean)
-    .slice(0, 12);
+  const root = document.querySelector("main") || document.body;
+  const nodes = Array.from(
+    root.querySelectorAll(
+      "h1, h2, h3, h4, p, li, dt, dd, blockquote, .key-value-row, .session-item, .card-title"
+    )
+  );
 
-  const combined = [heading ? `Page: ${heading}` : "", ...paragraphs]
-    .filter(Boolean)
-    .join(". ");
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const node of nodes) {
+    if (
+      node.closest(
+        "[data-a11y-ignore], nav, header, footer, form, button, [role='button'], [aria-hidden='true']"
+      )
+    ) {
+      continue;
+    }
 
-  return combined.slice(0, 2000);
+    const text = node.textContent?.replace(/\s+/g, " ").trim() || "";
+    if (!text) continue;
+    if (text.length < 3) continue;
+    if (seen.has(text)) continue;
+
+    seen.add(text);
+    lines.push(text);
+  }
+
+  return lines.join("\n").slice(0, 4500);
 }
 
 export default function AccessibilityVoiceButton() {
@@ -59,6 +76,14 @@ export default function AccessibilityVoiceButton() {
     applySettings(settings);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    setAudio(null);
+    setLoading(false);
+  }, [pathname]);
 
   function toggleSetting(key: keyof typeof settings) {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -118,7 +143,7 @@ export default function AccessibilityVoiceButton() {
   }
 
   return (
-    <div className="a11y-shell">
+    <div className="a11y-shell" data-a11y-ignore="true">
       {open ? (
         <div className="a11y-panel card">
           <h3 style={{ marginBottom: 8 }}>Accessibility</h3>
@@ -173,7 +198,7 @@ export default function AccessibilityVoiceButton() {
         aria-label="Open accessibility controls"
         onClick={() => setOpen((value) => !value)}
       >
-        {open ? "Close A11y" : "Accessibility"}
+        {open ? "Close Accessibility" : "Accessibility"}
       </button>
     </div>
   );

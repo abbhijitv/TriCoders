@@ -30,7 +30,7 @@ export default function Step4Page() {
       <TopNav />
 
       <div className="container">
-        <h1>Step 4 — Set Challenge Level in {selectedStack}</h1>
+        <h1>Set Challenge Level in {selectedStack}</h1>
 
         <div className="grid grid-3">
           {(["easy", "medium", "hard"] as const).map((cat) => (

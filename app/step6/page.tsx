@@ -915,7 +915,7 @@ export default function Step6Page() {
       <div>
         <TopNav />
         <div className="container">
-          <h1>Step 6 — Final Sprint Console</h1>
+          <h1>Final Sprint Console</h1>
           <div className="card">
             <p>{errorMessage}</p>
           </div>
@@ -929,7 +929,7 @@ export default function Step6Page() {
       <div>
         <TopNav />
         <div className="container">
-          <h1>Step 6 — Final Sprint Console</h1>
+          <h1>Final Sprint Console</h1>
           <div className="card">
             <p>No data available.</p>
           </div>
@@ -950,7 +950,7 @@ export default function Step6Page() {
       <TopNav />
 
       <div className="container" style={{ paddingBottom: 40 }}>
-        <h1>Step 6 — Final Sprint Console</h1>
+        <h1>Final Sprint Console</h1>
 
         <div className="card">
           <h2>Mission Overview</h2>
