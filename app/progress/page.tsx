@@ -17,7 +17,7 @@ export default function ProgressPage() {
       <TopNav />
 
       <div className="container">
-        <h1>Progress</h1>
+        <h1>Mission Timeline</h1>
 
         <div className="card">
           <h2>Saved Workflow Memory</h2>

@@ -738,9 +738,11 @@ export default function Step6Page() {
     router.push("/calendar");
   }
 
-  async function askGeminiForHelp() {
+  async function askGeminiForHelp(questionOverride?: string) {
     if (!data) return;
-    if (!geminiQuestion.trim()) {
+    const finalQuestion = questionOverride || geminiQuestion;
+
+    if (!finalQuestion.trim()) {
       setUiMessage("Type a question for Gemini.");
       return;
     }
@@ -761,7 +763,7 @@ export default function Step6Page() {
           planSteps: planToUse?.steps || [],
           currentSessionNumber: currentSession?.sessionNumber || null,
           currentSessionHours: currentSession?.durationHours || 0,
-          question: geminiQuestion
+          question: finalQuestion
         })
       });
 
@@ -913,7 +915,7 @@ export default function Step6Page() {
       <div>
         <TopNav />
         <div className="container">
-          <h1>Step 6 — Mission Control</h1>
+          <h1>Step 6 — Final Sprint Console</h1>
           <div className="card">
             <p>{errorMessage}</p>
           </div>
@@ -927,7 +929,7 @@ export default function Step6Page() {
       <div>
         <TopNav />
         <div className="container">
-          <h1>Step 6 — Mission Control</h1>
+          <h1>Step 6 — Final Sprint Console</h1>
           <div className="card">
             <p>No data available.</p>
           </div>
@@ -936,12 +938,19 @@ export default function Step6Page() {
     );
   }
 
+  const noStudentProgressYet =
+    completedSessions.length === 0 &&
+    !githubProgress?.branchFound &&
+    (githubProgress?.commitCount || 0) === 0 &&
+    !githubProgress?.prOpened &&
+    (githubProgress?.issueCommentCount || 0) === 0;
+
   return (
     <div>
       <TopNav />
 
       <div className="container" style={{ paddingBottom: 40 }}>
-        <h1>Step 6 — Mission Control</h1>
+        <h1>Step 6 — Final Sprint Console</h1>
 
         <div className="card">
           <h2>Mission Overview</h2>
@@ -1097,9 +1106,6 @@ export default function Step6Page() {
             <button type="button" onClick={openCalendarPlanner}>
               Open Calendar Planner
             </button>
-            <button type="button" onClick={askGeminiForHelp}>
-              {geminiLoading ? "Asking Gemini..." : "Ask Gemini In App"}
-            </button>
           </div>
         </div>
 
@@ -1112,6 +1118,31 @@ export default function Step6Page() {
             rows={4}
             placeholder="Example: I split session 1. What exact git commands should I run next?"
           />
+          <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button type="button" onClick={() => askGeminiForHelp()} disabled={geminiLoading}>
+              {geminiLoading ? "Asking Gemini..." : "Ask Gemini In App"}
+            </button>
+            {noStudentProgressYet ? (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  const starterQuestion =
+                    "I have not started yet. Give me the exact first 5 actions to begin this issue safely.";
+                  setGeminiQuestion(starterQuestion);
+                  askGeminiForHelp(starterQuestion);
+                }}
+                disabled={geminiLoading}
+              >
+                Get Starter Help
+              </button>
+            ) : null}
+          </div>
+          {noStudentProgressYet ? (
+            <p className="small" style={{ marginTop: 10 }}>
+              No progress detected yet. You can use “Get Starter Help” for a step-by-step kickoff.
+            </p>
+          ) : null}
           {geminiAnswer ? (
             <>
               <h3 style={{ marginTop: 14 }}>Gemini Response</h3>

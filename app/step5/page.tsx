@@ -135,7 +135,7 @@ export default function Step5Page() {
       <TopNav />
 
       <div className="container">
-        <h1>Step 5 — Recommendations</h1>
+        <h1>Step 5 — Best Issue Targets</h1>
 
         {loading && <p>Loading...</p>}
 

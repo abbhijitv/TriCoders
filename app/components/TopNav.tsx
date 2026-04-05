@@ -55,7 +55,7 @@ export default function TopNav() {
     clearFlowData();
     localStorage.removeItem("step6Data");
     localStorage.removeItem("calendarPlannerData");
-    window.location.assign("/auth/logout");
+    window.location.assign("/auth/logout?federated=1");
   }
 
   return (

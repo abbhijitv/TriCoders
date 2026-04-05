@@ -73,7 +73,7 @@ export default function Step2Page() {
       <TopNav />
 
       <div className="container">
-        <h1>Step 2 — Repo Input</h1>
+        <h1>Step 2 — Pick Your Target Repo</h1>
 
         <div className="card">
           <label className="small">Repository Owner</label>

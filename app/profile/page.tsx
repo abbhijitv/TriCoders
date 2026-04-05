@@ -67,7 +67,7 @@ export default function ProfilePage() {
       <TopNav />
 
       <div className="container">
-        <h1>Profile</h1>
+        <h1>Builder Profile</h1>
 
         <div className="card">
           <h2>User Profile</h2>

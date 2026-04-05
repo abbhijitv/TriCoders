@@ -105,7 +105,7 @@ export default function Step1Page() {
       <TopNav />
 
       <div className="container">
-        <h1>Step 1 — Profile + Availability</h1>
+        <h1>Step 1 — Hackathon Kickoff Profile</h1>
 
         <div className="card">
           <label className="small">GitHub Username</label>

@@ -34,14 +34,14 @@ export default function CreateAccountPage() {
     localStorage.removeItem("step6Data");
     localStorage.removeItem("calendarPlannerData");
     setMessage("Redirecting to Auth0 signup...");
-    window.location.assign("/auth/login?screen_hint=signup");
+    window.location.assign("/auth/login?connection=github&screen_hint=signup&prompt=login&max_age=0");
   }
 
   return (
     <div className="container" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
       <div className="card" style={{ width: "100%", maxWidth: 520 }}>
         <div className="badge">ContribAI</div>
-        <h1 style={{ fontSize: "2.2rem", marginTop: 14 }}>Create account</h1>
+        <h1 style={{ fontSize: "2.2rem", marginTop: 14 }}>Join The Hack Sprint</h1>
         <p className="small" style={{ marginBottom: 18 }}>
           Account creation is handled by Auth0.
         </p>

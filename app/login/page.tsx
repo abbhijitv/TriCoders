@@ -35,14 +35,14 @@ export default function LoginPage() {
     localStorage.removeItem("step6Data");
     localStorage.removeItem("calendarPlannerData");
     setMessage("Redirecting to Auth0...");
-    window.location.assign("/auth/login");
+    window.location.assign("/auth/login?connection=github&prompt=login&max_age=0");
   }
 
   return (
     <div className="container" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
       <div className="card" style={{ width: "100%", maxWidth: 460 }}>
         <div className="badge">ContribAI</div>
-        <h1 style={{ fontSize: "2.2rem", marginTop: 14 }}>Log in</h1>
+        <h1 style={{ fontSize: "2.2rem", marginTop: 14 }}>Launch Your Hackathon Session</h1>
         <p className="small" style={{ marginBottom: 18 }}>
           Access your contribution workspace.
         </p>

@@ -191,7 +191,7 @@ export default function CalendarPage() {
       <TopNav />
 
       <div className="container">
-        <h1>Calendar Planner</h1>
+        <h1>Sprint Calendar Planner</h1>
 
         {uiMessage ? (
           <div className="card">

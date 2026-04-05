@@ -72,17 +72,26 @@ function hasIssueTitleSignal(text: string, issueTitle?: string) {
     "an",
     "of",
     "is",
-    "txt"
+    "txt",
+    "hello",
+    "file",
+    "files",
+    "task",
+    "tasks",
+    "update",
+    "fix"
   ]);
 
   const keywords = normalizedTitle
     .replace(/[^a-z0-9\s-]/g, " ")
     .split(/\s+/)
     .map((part) => part.trim())
-    .filter((part) => part.length >= 4 && !stopwords.has(part));
+    .filter((part) => part.length >= 3 && !stopwords.has(part));
 
   if (!keywords.length) return false;
-  return keywords.some((keyword) => haystack.includes(keyword));
+  const matches = keywords.filter((keyword) => haystack.includes(keyword)).length;
+  const requiredMatches = keywords.length >= 2 ? 2 : 1;
+  return matches >= requiredMatches;
 }
 
 function deriveStatus(input: {

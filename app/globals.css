@@ -401,6 +401,77 @@ ol {
   margin-bottom: 10px;
 }
 
+.a11y-shell {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.a11y-fab {
+  min-width: 0;
+  padding: 11px 14px;
+  font-size: 0.92rem;
+}
+
+.a11y-panel {
+  width: min(360px, calc(100vw - 36px));
+  margin: 0;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.a11y-toggle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.a11y-toggle-grid button {
+  min-width: 0;
+  width: 100%;
+  padding: 9px 10px;
+  font-size: 0.84rem;
+}
+
+body.a11y-large-text {
+  font-size: 112%;
+}
+
+body.a11y-large-text h1,
+body.a11y-large-text h2,
+body.a11y-large-text h3 {
+  line-height: 1.14;
+}
+
+body.a11y-high-contrast {
+  --bg-deep: #000000;
+  --bg-mid: #0a0a0a;
+  --panel: #000000;
+  --panel-strong: #000000;
+  --line: rgba(255, 255, 255, 0.6);
+  --line-strong: rgba(255, 255, 255, 0.85);
+  --text-main: #ffffff;
+  --text-soft: #f3f3f3;
+  --heading: #ffffff;
+}
+
+body.a11y-colorblind {
+  --mint: #f2b705;
+  --sky: #49a6ff;
+  --gold: #ffcc33;
+}
+
+body.a11y-keyboard-nav :focus-visible {
+  outline: 3px solid #f2b705;
+  outline-offset: 3px;
+}
+
 @media (max-width: 900px) {
   .grid-2,
   .grid-3 {
@@ -425,5 +496,14 @@ ol {
 
   button {
     min-width: 0;
+  }
+
+  .a11y-shell {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .a11y-toggle-grid {
+    grid-template-columns: 1fr;
   }
 }

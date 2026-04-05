@@ -22,7 +22,7 @@ export default function Step3Page() {
       <TopNav />
 
       <div className="container">
-        <h1>Step 3 — Select Tech Area</h1>
+        <h1>Step 3 — Choose Your Build Track</h1>
 
         <div className="grid grid-3">
           {stacks.map((stack: string) => {
