@@ -122,6 +122,19 @@ function normalizeMissionStatus(status: string | undefined): MissionStatus {
   return "planned";
 }
 
+function isContinuationSession(session: SessionPlan) {
+  return (
+    !Number.isInteger(session.sessionNumber) ||
+    (session.goals || []).some((goal) =>
+      goal.toLowerCase().includes("remaining portion")
+    )
+  );
+}
+
+function baseSessionNumber(sessionNumber: number) {
+  return Math.floor(Number(sessionNumber));
+}
+
 export default function Step6Page() {
   const router = useRouter();
   const [data, setData] = useState<Step6Data | null>(null);
@@ -146,6 +159,9 @@ export default function Step6Page() {
   const [working, setWorking] = useState(false);
   const [workingAction, setWorkingAction] = useState("");
   const [uiMessage, setUiMessage] = useState("");
+  const [geminiQuestion, setGeminiQuestion] = useState("");
+  const [geminiAnswer, setGeminiAnswer] = useState("");
+  const [geminiLoading, setGeminiLoading] = useState(false);
 
   useEffect(() => {
     try {
@@ -219,7 +235,8 @@ export default function Step6Page() {
             owner: data.owner,
             repo: data.repo,
             username: data.profile?.githubUsername,
-            issueNumber: data.selectedIssue.number
+            issueNumber: data.selectedIssue.number,
+            issueTitle: data.selectedIssue.title
           })
         });
 
@@ -650,8 +667,33 @@ export default function Step6Page() {
       ...planToUse!,
       sessions: result.revisedSessions || sessions
     };
+    const updatedSessions = updatedPlan.sessions || [];
+
+    const hasContinuation = updatedSessions.some(
+      (session) =>
+        Number(session.sessionNumber).toFixed(1) ===
+        (Number(currentSession.sessionNumber) + 0.1).toFixed(1)
+    );
+    const updatedCurrentSession = updatedSessions.find(
+      (session) => session.sessionNumber === currentSession.sessionNumber
+    );
+    const shouldMarkOriginalAsComplete =
+      hasContinuation && Number(updatedCurrentSession?.durationHours || 0) > 0;
+
+    const nextCompletedSessions = shouldMarkOriginalAsComplete
+      ? Array.from(new Set([...completedSessions, currentSession.sessionNumber])).sort(
+          (a, b) => a - b
+        )
+      : completedSessions;
+    const nextProgressPercent = calculateProgressPercent(
+      nextCompletedSessions,
+      updatedSessions
+    );
 
     setRevisedPlan(updatedPlan);
+    setCompletedSessions(nextCompletedSessions);
+    setProgressPercent(nextProgressPercent);
+    setWorkedHoursToday("0");
     setMissionStatus("rescheduled");
     setAgentMessage(result.agentSummary || "Mission rescheduled.");
     setNextAction(result.nextAction || "Continue in the next available slot.");
@@ -666,11 +708,11 @@ export default function Step6Page() {
       status: "rescheduled",
       progress: {
         status: "rescheduled",
-        completedSessions,
+        completedSessions: nextCompletedSessions,
         blocker,
         nextAction: result.nextAction || "Continue in the next available slot.",
         lastUpdate: new Date().toISOString(),
-        progressPercent,
+        progressPercent: nextProgressPercent,
         workedHoursToday: numericWorkedHours
       },
       updatedPlan: updatedPlan,
@@ -694,6 +736,47 @@ export default function Step6Page() {
     );
 
     router.push("/calendar");
+  }
+
+  async function askGeminiForHelp() {
+    if (!data) return;
+    if (!geminiQuestion.trim()) {
+      setUiMessage("Type a question for Gemini.");
+      return;
+    }
+
+    try {
+      setGeminiLoading(true);
+      setUiMessage("");
+      const res = await fetch("/api/gemini-help", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          owner: data.owner,
+          repo: data.repo,
+          issueNumber: data.selectedIssue.number,
+          issueTitle: data.selectedIssue.title,
+          planSteps: planToUse?.steps || [],
+          currentSessionNumber: currentSession?.sessionNumber || null,
+          currentSessionHours: currentSession?.durationHours || 0,
+          question: geminiQuestion
+        })
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        setUiMessage(result.error || "Failed to get Gemini help.");
+        return;
+      }
+
+      setGeminiAnswer(result.answer || "No response.");
+    } catch (error: any) {
+      setUiMessage(error.message || "Failed to get Gemini help.");
+    } finally {
+      setGeminiLoading(false);
+    }
   }
 
   function downloadMissionReport() {
@@ -865,7 +948,6 @@ export default function Step6Page() {
           <p><strong>Status:</strong> {missionStatus}</p>
           <p><strong>Repo:</strong> {data.owner}/{data.repo}</p>
           <p><strong>Issue:</strong> #{data.selectedIssue.number} {data.selectedIssue.title}</p>
-          <p><strong>Progress:</strong> {progressPercent}%</p>
           <p><strong>Next Action:</strong> {nextAction || "Not set yet"}</p>
           <p><strong>Agent Guidance:</strong> {agentMessage || "No adaptive guidance yet"}</p>
           <p><strong>Suggested Base Branch:</strong> {baseBranchSuggestion || "Not suggested yet"}</p>
@@ -877,10 +959,7 @@ export default function Step6Page() {
           {data.profile?.githubUsername ? (
             githubProgress ? (
               <>
-                <p><strong>Branch Found:</strong> {githubProgress.branchFound ? "Yes" : "No"}</p>
                 <p><strong>Branch Name:</strong> {githubProgress.branchName || "Not found"}</p>
-                <p><strong>Commit Count:</strong> {githubProgress.commitCount}</p>
-                <p><strong>Latest Commit:</strong> {githubProgress.latestCommitMessage || "No commits yet"}</p>
                 <p><strong>PR Opened:</strong> {githubProgress.prOpened ? "Yes" : "No"}</p>
                 <p><strong>PR Title:</strong> {githubProgress.prTitle || "No PR detected"}</p>
                 <p><strong>PR State:</strong> {githubProgress.prState || "N/A"}</p>
@@ -931,12 +1010,18 @@ export default function Step6Page() {
             <h2>Progress Tracking</h2>
             {sessions.map((session) => {
               const completed = completedSessions.includes(session.sessionNumber);
+              const continuation = isContinuationSession(session);
               const remainingHours =
                 currentSession?.sessionNumber === session.sessionNumber && !completed
                   ? Math.max(0, session.durationHours - Number(workedHoursToday || 0))
                   : completed
                   ? 0
                   : session.durationHours;
+              const badgeLabel = completed
+                ? "Complete"
+                : continuation
+                ? "In Progress"
+                : "Pending";
 
               return (
                 <div key={session.sessionNumber} className="card">
@@ -945,23 +1030,16 @@ export default function Step6Page() {
                       <strong>
                         Session {session.sessionNumber} — {session.durationHours} hour(s)
                       </strong>
+                      {continuation ? (
+                        <div className="small">
+                          Continue from Session {baseSessionNumber(session.sessionNumber)}
+                        </div>
+                      ) : null}
                       <div className="small">{formatHoursLabel(remainingHours)}</div>
                     </div>
-                    <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={completed}
-                        onChange={() => {
-                          setCompletedSessions((prev) =>
-                            prev.includes(session.sessionNumber)
-                              ? prev.filter((value) => value !== session.sessionNumber)
-                              : [...prev, session.sessionNumber].sort((a, b) => a - b)
-                          );
-                        }}
-                        style={{ width: 18 }}
-                      />
-                      Completed
-                    </label>
+                    <span className="badge">
+                      {badgeLabel}
+                    </span>
                   </div>
 
                   <ul style={{ marginTop: 10 }}>
@@ -972,14 +1050,6 @@ export default function Step6Page() {
                 </div>
               );
             })}
-
-            <label className="small">Blocker / Stuck Note</label>
-            <textarea
-              value={blocker}
-              onChange={(event) => setBlocker(event.target.value)}
-              rows={4}
-              placeholder="Describe where you are stuck..."
-            />
 
             <div className="grid grid-2" style={{ marginTop: 14 }}>
               <div>
@@ -1008,9 +1078,6 @@ export default function Step6Page() {
               <button type="button" onClick={markProgress} disabled={working}>
                 {workingAction === "Mark Progress" ? "Working..." : "Mark Progress"}
               </button>
-              <button type="button" onClick={handleStuck} disabled={working}>
-                {workingAction === "I'm Stuck" ? "Working..." : "I’m Stuck"}
-              </button>
               <button type="button" onClick={handleReadyForPr} disabled={working}>
                 {workingAction === "Ready for PR" ? "Working..." : "Ready for PR"}
               </button>
@@ -1030,7 +1097,31 @@ export default function Step6Page() {
             <button type="button" onClick={openCalendarPlanner}>
               Open Calendar Planner
             </button>
+            <button type="button" onClick={askGeminiForHelp}>
+              {geminiLoading ? "Asking Gemini..." : "Ask Gemini In App"}
+            </button>
           </div>
+        </div>
+
+        <div className="card">
+          <h2>Gemini Help</h2>
+          <label className="small">Ask a question about your current issue/session</label>
+          <textarea
+            value={geminiQuestion}
+            onChange={(event) => setGeminiQuestion(event.target.value)}
+            rows={4}
+            placeholder="Example: I split session 1. What exact git commands should I run next?"
+          />
+          {geminiAnswer ? (
+            <>
+              <h3 style={{ marginTop: 14 }}>Gemini Response</h3>
+              <textarea value={geminiAnswer} readOnly rows={12} />
+            </>
+          ) : (
+            <p className="small" style={{ marginTop: 10 }}>
+              Response will appear here after you ask.
+            </p>
+          )}
         </div>
 
         {maintainerComment ? (

@@ -97,18 +97,37 @@ function buildEventsFromSessions(params: {
 async function getCalendarClient() {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const subject = process.env.GOOGLE_CALENDAR_SUBJECT;
 
   if (!clientEmail || !privateKey) {
     throw new Error("Missing Google service account credentials in .env.local");
   }
 
-  const auth = new google.auth.JWT({
+  const authConfig: ConstructorParameters<typeof google.auth.JWT>[0] = {
     email: clientEmail,
     key: privateKey,
     scopes: ["https://www.googleapis.com/auth/calendar"]
-  });
+  };
+
+  // Subject is only for domain-wide delegation impersonation.
+  // It should not be set to a target calendar ID.
+  if (subject) {
+    authConfig.subject = subject;
+  }
+
+  const auth = new google.auth.JWT(authConfig);
 
   return google.calendar({ version: "v3", auth });
+}
+
+function buildGoogleCalendarEventLink(eventId: string, calendarId: string) {
+  const eidRaw = `${eventId} ${calendarId}`;
+  const eid = Buffer.from(eidRaw)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  return `https://calendar.google.com/calendar/u/0/r/event?eid=${eid}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -128,7 +147,8 @@ export async function POST(req: NextRequest) {
     }
 
     const calendar = await getCalendarClient();
-    const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
+    const calendarId =
+      process.env.GOOGLE_CALENDAR_ID || process.env.GOOGLE_CLIENT_EMAIL || "primary";
     const timezone = process.env.GOOGLE_CALENDAR_TIMEZONE || "America/Phoenix";
 
     const eventsToCreate = buildEventsFromSessions({
@@ -168,7 +188,11 @@ export async function POST(req: NextRequest) {
         summary: created.data.summary,
         start: created.data.start?.dateTime,
         end: created.data.end?.dateTime,
-        htmlLink: created.data.htmlLink
+        htmlLink: created.data.htmlLink,
+        openLink:
+          created.data.id && calendarId
+            ? buildGoogleCalendarEventLink(created.data.id, calendarId)
+            : created.data.htmlLink
       });
     }
 

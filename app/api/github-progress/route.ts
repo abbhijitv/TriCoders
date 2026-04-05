@@ -5,6 +5,7 @@ type GithubProgressRequest = {
   repo: string;
   username?: string;
   issueNumber?: number;
+  issueTitle?: string;
 };
 
 function githubHeaders(): HeadersInit {
@@ -37,6 +38,53 @@ function normalizeText(value: string) {
   return value.toLowerCase();
 }
 
+function hasIssueReference(text: string, issueNumber?: number) {
+  if (!issueNumber) return true;
+  const value = normalizeText(text || "");
+  return (
+    value.includes(`#${issueNumber}`) ||
+    value.includes(`issue ${issueNumber}`) ||
+    value.includes(`issue-${issueNumber}`) ||
+    value.includes(`/${issueNumber}`)
+  );
+}
+
+function hasIssueTitleSignal(text: string, issueTitle?: string) {
+  const haystack = normalizeText(text || "");
+  const normalizedTitle = normalizeText(issueTitle || "");
+  if (!haystack || !normalizedTitle) return false;
+
+  const stopwords = new Set([
+    "add",
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "into",
+    "your",
+    "this",
+    "that",
+    "to",
+    "in",
+    "on",
+    "a",
+    "an",
+    "of",
+    "is",
+    "txt"
+  ]);
+
+  const keywords = normalizedTitle
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 4 && !stopwords.has(part));
+
+  if (!keywords.length) return false;
+  return keywords.some((keyword) => haystack.includes(keyword));
+}
+
 function deriveStatus(input: {
   merged: boolean;
   prOpened: boolean;
@@ -55,15 +103,13 @@ function deriveStatus(input: {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as GithubProgressRequest;
-    const { owner, repo, username = "", issueNumber } = body;
+    const { owner, repo, username = "", issueNumber, issueTitle } = body;
 
     if (!owner || !repo) {
       return NextResponse.json({ error: "Missing owner or repo" }, { status: 400 });
     }
 
     const normalizedUsername = normalizeText(username);
-    const issueRef = issueNumber ? `#${issueNumber}` : "";
-
     const [repoInfo, issueComments, branches, commits, pulls] = await Promise.all([
       safeFetchJson(`https://api.github.com/repos/${owner}/${repo}`),
       issueNumber
@@ -93,11 +139,11 @@ export async function POST(req: NextRequest) {
     const matchedBranches = (branches as any[]).filter((branch) => {
       const name = normalizeText(branch?.name || "");
       if (!name) return false;
-      if (normalizedUsername && name.includes(normalizedUsername)) return true;
-      if (issueNumber && (name.includes(`issue-${issueNumber}`) || name.includes(`${issueNumber}`))) {
-        return true;
+      if (issueNumber) {
+        return hasIssueReference(name, issueNumber) || hasIssueTitleSignal(name, issueTitle);
       }
-      return false;
+      if (normalizedUsername) return name.includes(normalizedUsername);
+      return true;
     });
 
     const relevantCommits = (commits as any[]).filter((commit) => {
@@ -109,11 +155,8 @@ export async function POST(req: NextRequest) {
         ? authorLogin === normalizedUsername || commitAuthor.includes(normalizedUsername)
         : true;
 
-      const issueMatch = issueNumber
-        ? message.includes(issueRef.toLowerCase()) ||
-          message.includes(`issue ${issueNumber}`) ||
-          message.includes(`issue-${issueNumber}`)
-        : true;
+      const issueMatch =
+        hasIssueReference(message, issueNumber) || hasIssueTitleSignal(message, issueTitle);
 
       return userMatch && issueMatch;
     });
@@ -126,13 +169,16 @@ export async function POST(req: NextRequest) {
 
       const userMatch = normalizedUsername ? userLogin === normalizedUsername : true;
       const issueMatch = issueNumber
-        ? title.includes(issueRef.toLowerCase()) ||
-          bodyText.includes(issueRef.toLowerCase()) ||
-          bodyText.includes(`issue ${issueNumber}`) ||
-          headRef.includes(`issue-${issueNumber}`)
+        ? hasIssueReference(title, issueNumber) ||
+          hasIssueReference(bodyText, issueNumber) ||
+          hasIssueReference(headRef, issueNumber) ||
+          hasIssueTitleSignal(title, issueTitle) ||
+          hasIssueTitleSignal(bodyText, issueTitle) ||
+          hasIssueTitleSignal(headRef, issueTitle)
         : true;
 
-      return userMatch || issueMatch;
+      // When an issue is selected, avoid leaking activity from other issues.
+      return userMatch && issueMatch;
     });
 
     const branchFound = matchedBranches.length > 0;

@@ -3,33 +3,39 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAuthSession, setAuthSession } from "@/lib/auth";
+import { clearFlowData } from "@/lib/flow";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (getAuthSession()) {
-      router.replace("/step1");
+    let active = true;
+
+    async function checkSession() {
+      try {
+        const res = await fetch("/auth/profile", { cache: "no-store" });
+        if (res.ok && active) {
+          router.replace("/step1");
+        }
+      } catch {
+        // ignore and stay on login page
+      }
     }
+
+    checkSession();
+    return () => {
+      active = false;
+    };
   }, [router]);
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    setAuthSession({
-      email,
-      passwordHint: password ? "saved-locally" : "",
-      loggedInAt: new Date().toISOString()
-    });
-
-    setMessage("Login successful. Redirecting...");
-    window.setTimeout(() => {
-      router.push("/step1");
-    }, 300);
+  function startLogin() {
+    // Fresh demo on every login.
+    clearFlowData();
+    localStorage.removeItem("step6Data");
+    localStorage.removeItem("calendarPlannerData");
+    setMessage("Redirecting to Auth0...");
+    window.location.assign("/auth/login");
   }
 
   return (
@@ -41,44 +47,20 @@ export default function LoginPage() {
           Access your contribution workspace.
         </p>
 
-        <form onSubmit={handleLogin}>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div>
-              <label className="small">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="small">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <Link href="/" className="link">
-                Home
-              </Link>
-              <Link href="/create-account" className="link">
-                Create account
-              </Link>
-            </div>
-
-            <button type="submit" disabled={!email.trim() || !password.trim()}>
-              Log In
-            </button>
+        <div style={{ display: "grid", gap: 14 }}>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <Link href="/" className="link">
+              Home
+            </Link>
+            <Link href="/create-account" className="link">
+              Create account
+            </Link>
           </div>
-        </form>
+
+          <button type="button" onClick={startLogin}>
+            Continue with Auth0
+          </button>
+        </div>
 
         {message ? (
           <div className="card" style={{ marginTop: 18, marginBottom: 0 }}>

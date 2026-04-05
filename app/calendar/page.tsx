@@ -267,10 +267,10 @@ export default function CalendarPage() {
                     <div>
                       {evt.start} → {evt.end}
                     </div>
-                    {evt.htmlLink ? (
+                    {evt.openLink || evt.htmlLink ? (
                       <div style={{ marginTop: 8 }}>
                         <a
-                          href={evt.htmlLink}
+                          href={evt.openLink || evt.htmlLink}
                           target="_blank"
                           rel="noreferrer"
                           className="link"

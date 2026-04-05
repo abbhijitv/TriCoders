@@ -1,14 +1,66 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopNav from "../components/TopNav";
-import { getFlowData } from "@/lib/flow";
+import { FlowData, getFlowData, setFlowData } from "@/lib/flow";
+
+type AuthProfile = {
+  sub?: string;
+  nickname?: string;
+  preferred_username?: string;
+  name?: string;
+  email?: string;
+};
+
+function extractGithubUsername(profile: AuthProfile | null): string {
+  if (!profile) return "";
+  if (profile.preferred_username) return profile.preferred_username;
+  if (profile.nickname) return profile.nickname;
+  if (profile.sub?.startsWith("github|") && profile.name) return profile.name;
+  return "";
+}
 
 export default function ProfilePage() {
   const router = useRouter();
-  const flow = useMemo(() => getFlowData(), []);
+  const [flow, setFlow] = useState<FlowData>(getFlowData());
+  const [authGithubUsername, setAuthGithubUsername] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAuthProfile() {
+      try {
+        const res = await fetch("/auth/profile", { cache: "no-store" });
+        if (!res.ok) return;
+
+        const profile = (await res.json()) as AuthProfile;
+        const extracted = extractGithubUsername(profile);
+        if (!active || !extracted) return;
+
+        setAuthGithubUsername(extracted);
+        if (!flow.profile?.githubUsername) {
+          setFlowData({
+            profile: {
+              githubUsername: extracted,
+              availability: flow.profile?.availability || { slots: [] }
+            }
+          });
+          setFlow(getFlowData());
+        }
+      } catch {
+        // non-blocking; keep existing flow data
+      }
+    }
+
+    loadAuthProfile();
+    return () => {
+      active = false;
+    };
+  }, [flow.profile?.availability, flow.profile?.githubUsername]);
+
   const slots = flow.profile?.availability?.slots || [];
+  const displayGithubUsername = flow.profile?.githubUsername || authGithubUsername;
 
   return (
     <div>
@@ -22,7 +74,7 @@ export default function ProfilePage() {
           <div className="key-value-list">
             <div className="key-value-row">
               <strong>GitHub username</strong>
-              <span>{flow.profile?.githubUsername || "Not provided"}</span>
+              <span>{displayGithubUsername || "Not provided"}</span>
             </div>
             <div className="key-value-row">
               <strong>Current repository</strong>

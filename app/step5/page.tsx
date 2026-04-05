@@ -90,7 +90,24 @@ export default function Step5Page() {
 
       setFlowData({
         selectedIssue,
-        plan: data
+        plan: data,
+        mission: {
+          status: "planned",
+          progress: {
+            status: "planned",
+            completedSessions: [],
+            blocker: "",
+            nextAction: "Start Session 1.",
+            progressPercent: 0,
+            workedHoursToday: 0,
+            lastUpdate: new Date().toISOString()
+          },
+          maintainerComment: null,
+          prDraft: null,
+          updatedPlan: null,
+          baseBranchSuggestion: "",
+          githubProgress: null
+        }
       });
 
       localStorage.setItem(

@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { clearAuthSession, getAuthSession } from "@/lib/auth";
 import { clearFlowData, getFlowData } from "@/lib/flow";
 
 const navLinks = [
@@ -15,7 +14,6 @@ const navLinks = [
 
 export default function TopNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const [summary, setSummary] = useState({
     githubUsername: "",
     repoName: "",
@@ -23,21 +21,41 @@ export default function TopNav() {
   });
 
   useEffect(() => {
-    const flow = getFlowData();
-    const session = getAuthSession();
-    setSummary({
-      githubUsername: flow.profile?.githubUsername || session?.email || "",
-      repoName: flow.owner && flow.repo ? `${flow.owner}/${flow.repo}` : "",
-      missionStatus: flow.mission?.status || ""
-    });
+    let active = true;
+
+    async function loadSummary() {
+      const flow = getFlowData();
+      let email = "";
+
+      try {
+        const res = await fetch("/auth/profile", { cache: "no-store" });
+        if (res.ok) {
+          const profile = await res.json();
+          email = profile?.email || profile?.name || "";
+        }
+      } catch {
+        // ignore profile lookup errors
+      }
+
+      if (!active) return;
+      setSummary({
+        githubUsername: flow.profile?.githubUsername || email || "",
+        repoName: flow.owner && flow.repo ? `${flow.owner}/${flow.repo}` : "",
+        missionStatus: flow.mission?.status || ""
+      });
+    }
+
+    loadSummary();
+    return () => {
+      active = false;
+    };
   }, [pathname]);
 
   function logout() {
-    clearAuthSession();
     clearFlowData();
     localStorage.removeItem("step6Data");
     localStorage.removeItem("calendarPlannerData");
-    router.push("/login");
+    window.location.assign("/auth/logout");
   }
 
   return (
